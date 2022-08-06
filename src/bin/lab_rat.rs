@@ -4,11 +4,14 @@ use procfs::process::Process;
 fn main() {
     let me = Process::myself().unwrap();
     println!("My PID is {}", me.pid);
-    let x = Box::new(424242);
+    let mut x = Box::new(424242);
     println!("{} at address {:p}", x, x);
     println!("I'm a lab rat");
     for line in io::stdin().lines() {
-        print!("{}", line.unwrap());
+        let line =  line.unwrap();
+        if line == "+" {
+            *x += 1;
+        }
     }
     println!("{} at address {:p}", x, x);
 }
