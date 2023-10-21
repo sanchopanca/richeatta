@@ -1,10 +1,10 @@
 use nix::sys::uio;
 use nix::sys::uio::RemoteIoVec;
 use nix::unistd::Pid;
-use procfs::process::{Process, MMapPath};
+use procfs::process::{MMapPath, Process};
 
-use std::io::IoSlice;
 use std::io::prelude::*;
+use std::io::IoSlice;
 use std::io::SeekFrom;
 
 enum State {
@@ -42,7 +42,10 @@ impl Agent {
         };
         match uio::process_vm_writev(Pid::from_raw(self.pid), &[wrapper], &[target]) {
             Err(e) => println!("Error writing to {:#x}: {}", target.base, e),
-            Ok(written) => println!("Success writing to {:#x}, {} bytes written", target.base, written)
+            Ok(written) => println!(
+                "Success writing to {:#x}, {} bytes written",
+                target.base, written
+            ),
         }
     }
 
@@ -52,26 +55,24 @@ impl Agent {
         let maps = p.maps().unwrap();
 
         for map in maps {
-            match map.pathname {
-                MMapPath::Heap => {
-                    mem.seek(SeekFrom::Start(map.address.0)).unwrap();
-                    let mut buf = vec![0; (map.address.1 - map.address.0) as usize];
-                    mem.read_exact(&mut buf).unwrap();
-                    if first_search {
-                        self.first_search_helper(&buf, value, map.address.0 as usize);
-                    } else {
-                        self.refine_search_helper(&buf, value, map.address.0 as usize);
-                    }
-                },
-                _ => ()
-            };
+            if map.pathname != MMapPath::Heap {
+                continue;
+            }
+            mem.seek(SeekFrom::Start(map.address.0)).unwrap();
+            let mut buf = vec![0; (map.address.1 - map.address.0) as usize];
+            mem.read_exact(&mut buf).unwrap();
+            if first_search {
+                self.first_search_helper(&buf, value, map.address.0 as usize);
+            } else {
+                self.refine_search_helper(&buf, value, map.address.0 as usize);
+            }
         }
     }
 
     fn first_search_helper(&mut self, buffer: &[u8], value: i32, address_start: usize) {
         let mut found = Vec::new();
         for i in (0..buffer.len()).step_by(4) {
-            let number = to_i32(&buffer[i..i+4]);
+            let number = to_i32(&buffer[i..i + 4]);
             if number == value {
                 println!("FOUND {} at {:#x}", number, address_start + i);
                 found.push(address_start + i);
@@ -84,7 +85,7 @@ impl Agent {
         let mut found = Vec::new();
         for address in &self.candidates {
             let i = address - address_start;
-            let number = to_i32(&buffer[i..i+4]);
+            let number = to_i32(&buffer[i..i + 4]);
             if number == value {
                 println!("FOUND {} at {:#x}", number, address_start + i);
                 found.push(address_start + i);
