@@ -1,9 +1,8 @@
-use procfs::process::Process;
-use std::io;
+use std::{io, process};
 
 fn main() {
-    let me = Process::myself().unwrap();
-    println!("My PID is {}", me.pid);
+    let my_pid = process::id();
+    println!("My PID is {}", my_pid);
     let mut x = Box::new(424242);
     let y = Box::new(424242);
     println!("x = {} at address {:p}", x, x);

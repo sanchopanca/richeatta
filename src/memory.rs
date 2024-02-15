@@ -1,11 +1,7 @@
-use nix::sys::uio;
-use nix::sys::uio::RemoteIoVec;
-use nix::unistd::Pid;
-use procfs::process::{MMapPath, Process};
-
-use std::io::prelude::*;
-use std::io::IoSlice;
-use std::io::SeekFrom;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "windows")]
+mod windows;
 
 enum State {
     Idle,
@@ -34,65 +30,61 @@ impl Agent {
     pub fn modify(&self, value: i32) {
         let address = self.candidates[0];
 
-        let data = value.to_ne_bytes();
-        let wrapper = IoSlice::new(&data);
-        let target = RemoteIoVec {
-            base: address,
-            len: data.len(),
-        };
-        match uio::process_vm_writev(Pid::from_raw(self.pid), &[wrapper], &[target]) {
-            Err(e) => println!("Error writing to {:#x}: {}", target.base, e),
-            Ok(written) => println!(
-                "Success writing to {:#x}, {} bytes written",
-                target.base, written
-            ),
-        }
+        #[cfg(target_os = "linux")]
+        linux::modify_at_address(self.pid, address, value);
+
+        #[cfg(target_os = "windows")]
+        windows::modify_at_address(self.pid, address, value);
     }
 
+    #[cfg(target_os = "linux")]
     pub fn search(&mut self, value: i32, first_search: bool) {
-        let p = Process::new(self.pid).unwrap();
-        let mut mem = p.mem().unwrap();
-        let maps = p.maps().unwrap();
-
-        for map in maps {
-            if map.pathname != MMapPath::Heap {
-                continue;
-            }
-            mem.seek(SeekFrom::Start(map.address.0)).unwrap();
-            let mut buf = vec![0; (map.address.1 - map.address.0) as usize];
-            mem.read_exact(&mut buf).unwrap();
-            if first_search {
-                self.first_search_helper(&buf, value, map.address.0 as usize);
-            } else {
-                self.refine_search_helper(&buf, value, map.address.0 as usize);
-            }
+        if first_search {
+            self.candidates = linux::search_everywhere(self.pid, value);
+        } else {
+            self.candidates = linux::search_among_candidates(self.pid, value, &self.candidates);
         }
     }
 
-    fn first_search_helper(&mut self, buffer: &[u8], value: i32, address_start: usize) {
-        let mut found = Vec::new();
-        for i in (0..buffer.len()).step_by(4) {
-            let number = to_i32(&buffer[i..i + 4]);
-            if number == value {
-                println!("FOUND {} at {:#x}", number, address_start + i);
-                found.push(address_start + i);
-            }
+    #[cfg(target_os = "windows")]
+    pub fn search(&mut self, value: i32, first_search: bool) {
+        if first_search {
+            self.candidates = windows::search_everywhere(self.pid, value);
+        } else {
+            self.candidates = windows::search_among_candidates(self.pid, value, &self.candidates);
         }
-        self.candidates = found;
     }
+}
 
-    fn refine_search_helper(&mut self, buffer: &[u8], value: i32, address_start: usize) {
-        let mut found = Vec::new();
-        for address in &self.candidates {
-            let i = address - address_start;
-            let number = to_i32(&buffer[i..i + 4]);
-            if number == value {
-                println!("FOUND {} at {:#x}", number, address_start + i);
-                found.push(address_start + i);
-            }
+fn first_search(buffer: &[u8], value: i32, base_address: usize) -> Vec<usize> {
+    let mut found = Vec::new();
+    for i in (0..buffer.len()).step_by(4) {
+        let number = to_i32(&buffer[i..i + 4]);
+        if number == value {
+            println!("FOUND {} at {:#x}", number, base_address + i);
+            found.push(base_address + i);
         }
-        self.candidates = found;
     }
+    found
+}
+
+#[cfg(target_os = "linux")]
+fn refine_search(
+    buffer: &[u8],
+    value: i32,
+    base_address: usize,
+    candidates: &[usize],
+) -> Vec<usize> {
+    let mut found = Vec::new();
+    for address in candidates {
+        let i = address - base_address;
+        let number = to_i32(&buffer[i..i + 4]);
+        if number == value {
+            println!("FOUND {} at {:#x}", number, base_address + i);
+            found.push(base_address + i);
+        }
+    }
+    found
 }
 
 fn to_i32(slice: &[u8]) -> i32 {
