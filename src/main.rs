@@ -15,10 +15,10 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let mut agent = memory::Agent::new(args.pid);
-    agent.search(424242, true);
+    agent.search(12345, true);
     println!("Found {} candidates", agent.count());
     for _ in io::stdin().lines() {}
-    agent.search(424242, false);
+    agent.search(54321, false);
     println!("Found {} candidates", agent.count());
     agent.modify(999999);
 }

@@ -5,6 +5,18 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bin]]
+name = "richeatta"
+path = "src/main.rs"
+
+[[bin]]
+name = "lab_rat"
+path = "src/bin/lab_rat.rs"
+
+[lib]
+name = "richeatta"
+path = "src/lib.rs"
+
 [dependencies]
 clap = { version = "4.4.6", features = ["derive"] }
 
