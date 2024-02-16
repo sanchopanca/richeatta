@@ -15,10 +15,32 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let mut agent = memory::Agent::new(args.pid);
-    agent.search(12345, true);
-    println!("Found {} candidates", agent.count());
-    for _ in io::stdin().lines() {}
-    agent.search(54321, false);
-    println!("Found {} candidates", agent.count());
-    agent.modify(999999);
+
+    let mut input = String::new();
+    loop {
+        input.clear();
+        io::stdin().read_line(&mut input).unwrap();
+        let command = input.trim().split_ascii_whitespace().collect::<Vec<&str>>();
+        if command.is_empty() {
+            continue;
+        }
+        match command[0] {
+            "search" => {
+                let value = command[1].parse::<i32>().unwrap();
+                agent.search(value, true);
+                println!("{} candidates found", agent.count());
+            }
+            "refine" => {
+                let value = command[1].parse::<i32>().unwrap();
+                agent.search(value, false);
+                println!("{} candidates found", agent.count());
+            }
+            "modify" => {
+                let value = command[1].parse::<i32>().unwrap();
+                agent.modify(value);
+            }
+            "exit" | "quit" | "q" => break,
+            _ => println!("Unknown command"),
+        }
+    }
 }
