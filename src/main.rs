@@ -27,12 +27,12 @@ fn main() {
         match command[0] {
             "search" => {
                 let value = command[1].parse::<i32>().unwrap();
-                process.search(value, true);
+                process.search(value);
                 println!("{} candidates found", process.count());
             }
             "refine" => {
                 let value = command[1].parse::<i32>().unwrap();
-                process.search(value, false);
+                process.refine(value);
                 println!("{} candidates found", process.count());
             }
             "modify" => {

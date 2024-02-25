@@ -40,7 +40,7 @@ fn test_modify_lab_rat_memory() {
         .expect("Failed to read line from stdout");
     print!("Lab Rat says: {}", line);
 
-    agent.search(12345, true);
+    agent.search(12345);
 
     assert!(agent.count() > 0);
 
@@ -53,7 +53,7 @@ fn test_modify_lab_rat_memory() {
         .expect("Failed to read line from stdout");
     print!("Lab Rat says: {}", line);
 
-    agent.search(54321, false);
+    agent.refine(54321);
 
     assert_eq!(agent.count(), 1);
 

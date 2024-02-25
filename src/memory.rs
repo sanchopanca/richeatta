@@ -31,13 +31,13 @@ impl Process {
         os_specific::modify_at_address(self.pid, address, value);
     }
 
-    pub fn search(&mut self, value: i32, first_search: bool) {
-        if first_search {
-            self.candidates = os_specific::search_everywhere(self.pid, value);
-        } else {
-            self.candidates =
-                os_specific::search_among_candidates(self.pid, value, &self.candidates);
-        }
+    pub fn search(&mut self, value: i32) {
+        self.candidates = os_specific::search_everywhere(self.pid, value);
+    }
+
+    pub fn refine(&mut self, new_value: i32) {
+        self.candidates =
+            os_specific::search_among_candidates(self.pid, new_value, &self.candidates);
     }
 }
 
