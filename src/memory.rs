@@ -1,7 +1,6 @@
-#[cfg(target_os = "linux")]
-mod linux;
-#[cfg(target_os = "windows")]
-mod windows;
+#[cfg_attr(target_os = "linux", path = "memory/linux.rs")]
+#[cfg_attr(target_os = "windows", path = "memory/windows.rs")]
+mod os_specific;
 
 enum State {
     Idle,
@@ -29,29 +28,15 @@ impl Process {
 
     pub fn modify(&self, value: i32) {
         let address = self.candidates[0];
-
-        #[cfg(target_os = "linux")]
-        linux::modify_at_address(self.pid, address, value);
-
-        #[cfg(target_os = "windows")]
-        windows::modify_at_address(self.pid, address, value);
+        os_specific::modify_at_address(self.pid, address, value);
     }
 
-    #[cfg(target_os = "linux")]
     pub fn search(&mut self, value: i32, first_search: bool) {
         if first_search {
-            self.candidates = linux::search_everywhere(self.pid, value);
+            self.candidates = os_specific::search_everywhere(self.pid, value);
         } else {
-            self.candidates = linux::search_among_candidates(self.pid, value, &self.candidates);
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    pub fn search(&mut self, value: i32, first_search: bool) {
-        if first_search {
-            self.candidates = windows::search_everywhere(self.pid, value);
-        } else {
-            self.candidates = windows::search_among_candidates(self.pid, value, &self.candidates);
+            self.candidates =
+                os_specific::search_among_candidates(self.pid, value, &self.candidates);
         }
     }
 }
