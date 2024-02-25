@@ -8,9 +8,10 @@ use winapi::um::winnt::{
     PROCESS_VM_WRITE,
 };
 
+use super::data_types::Integer;
 use super::first_search;
 
-pub fn modify_at_address(pid: i32, address: usize, value: i32) {
+pub fn modify_at_address<T: Integer>(pid: i32, address: usize, value: T) {
     let value = value.to_ne_bytes();
 
     // Open a handle to the process with write and operation permissions
@@ -46,7 +47,7 @@ pub fn modify_at_address(pid: i32, address: usize, value: i32) {
     }
 }
 
-pub fn search_everywhere(pid: i32, value: i32) -> Vec<usize> {
+pub fn search_everywhere<T: Integer>(pid: i32, value: T) -> Vec<usize> {
     let process_handle =
         unsafe { OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, pid as u32) };
 
@@ -99,7 +100,7 @@ pub fn search_everywhere(pid: i32, value: i32) -> Vec<usize> {
     candidates
 }
 
-pub fn search_among_candidates(pid: i32, value: i32, candidates: &[usize]) -> Vec<usize> {
+pub fn search_among_candidates<T: Integer>(pid: i32, value: T, candidates: &[usize]) -> Vec<usize> {
     let process_handle =
         unsafe { OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, pid as u32) };
 
@@ -114,7 +115,7 @@ pub fn search_among_candidates(pid: i32, value: i32, candidates: &[usize]) -> Ve
 
     for &address in candidates {
         let mut bytes_read = 0;
-        let mut value_at_address = 0;
+        let mut value_at_address = T::new();
         let read_success = unsafe {
             ReadProcessMemory(
                 process_handle,

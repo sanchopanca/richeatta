@@ -1,3 +1,8 @@
+use std::mem::size_of;
+
+use self::data_types::Integer;
+
+mod data_types;
 #[cfg_attr(target_os = "linux", path = "memory/linux.rs")]
 #[cfg_attr(target_os = "windows", path = "memory/windows.rs")]
 mod os_specific;
@@ -26,25 +31,27 @@ impl Process {
         self.candidates.len()
     }
 
-    pub fn modify(&self, value: i32) {
+    pub fn modify<T: Integer>(&self, value: T) {
         let address = self.candidates[0];
         os_specific::modify_at_address(self.pid, address, value);
     }
 
-    pub fn search(&mut self, value: i32) {
+    pub fn search<T: Integer>(&mut self, value: T) {
         self.candidates = os_specific::search_everywhere(self.pid, value);
     }
 
-    pub fn refine(&mut self, new_value: i32) {
+    // FIXME: If refine is called with a differnet larger type, it can try access memory outside the process memory map
+    pub fn refine<T: Integer>(&mut self, new_value: T) {
         self.candidates =
             os_specific::search_among_candidates(self.pid, new_value, &self.candidates);
     }
 }
 
-fn first_search(buffer: &[u8], value: i32, base_address: usize) -> Vec<usize> {
+fn first_search<T: Integer>(buffer: &[u8], value: T, base_address: usize) -> Vec<usize> {
+    let size = size_of::<T>();
     let mut found = Vec::new();
-    for i in (0..buffer.len()).step_by(4) {
-        let number = to_i32(&buffer[i..i + 4]);
+    for i in (0..buffer.len()).step_by(size) {
+        let number = to::<T>(&buffer[i..i + size]);
         if number == value {
             println!("FOUND {} at {:#x}", number, base_address + i);
             found.push(base_address + i);
@@ -54,16 +61,17 @@ fn first_search(buffer: &[u8], value: i32, base_address: usize) -> Vec<usize> {
 }
 
 #[cfg(target_os = "linux")]
-fn refine_search(
+fn refine_search<T: Integer>(
     buffer: &[u8],
-    value: i32,
+    value: T,
     base_address: usize,
     candidates: &[usize],
 ) -> Vec<usize> {
+    let size = size_of::<T>();
     let mut found = Vec::new();
     for address in candidates {
         let i = address - base_address;
-        let number = to_i32(&buffer[i..i + 4]);
+        let number = to::<T>(&buffer[i..i + size]);
         if number == value {
             println!("FOUND {} at {:#x}", number, base_address + i);
             found.push(base_address + i);
@@ -72,6 +80,6 @@ fn refine_search(
     found
 }
 
-fn to_i32(slice: &[u8]) -> i32 {
-    i32::from_ne_bytes(slice.try_into().unwrap())
+fn to<T: Integer>(slice: &[u8]) -> T {
+    T::from_ne_bytes(slice)
 }
