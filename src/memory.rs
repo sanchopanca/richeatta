@@ -8,15 +8,15 @@ enum State {
     Searching,
 }
 
-pub struct Agent {
+pub struct Process {
     pid: i32,
     state: State,
     candidates: Vec<usize>,
 }
 
-impl Agent {
+impl Process {
     pub fn new(pid: i32) -> Self {
-        Agent {
+        Process {
             pid,
             state: State::Idle,
             candidates: Vec::new(),

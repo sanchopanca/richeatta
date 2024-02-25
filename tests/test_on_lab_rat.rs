@@ -3,7 +3,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use richeatta::memory::Agent;
+use richeatta::memory::Process;
 
 #[test]
 fn test_modify_lab_rat_memory() {
@@ -32,7 +32,7 @@ fn test_modify_lab_rat_memory() {
         .expect("Failed to parse PID");
     assert_eq!(pid, pid);
 
-    let mut agent = Agent::new(pid);
+    let mut agent = Process::new(pid);
     line.clear();
     // address and value
     reader

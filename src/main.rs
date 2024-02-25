@@ -14,7 +14,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let mut agent = memory::Agent::new(args.pid);
+    let mut process = memory::Process::new(args.pid);
 
     let mut input = String::new();
     loop {
@@ -27,17 +27,17 @@ fn main() {
         match command[0] {
             "search" => {
                 let value = command[1].parse::<i32>().unwrap();
-                agent.search(value, true);
-                println!("{} candidates found", agent.count());
+                process.search(value, true);
+                println!("{} candidates found", process.count());
             }
             "refine" => {
                 let value = command[1].parse::<i32>().unwrap();
-                agent.search(value, false);
-                println!("{} candidates found", agent.count());
+                process.search(value, false);
+                println!("{} candidates found", process.count());
             }
             "modify" => {
                 let value = command[1].parse::<i32>().unwrap();
-                agent.modify(value);
+                process.modify(value);
             }
             "exit" | "quit" | "q" => break,
             _ => println!("Unknown command"),
