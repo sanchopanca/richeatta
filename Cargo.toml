@@ -32,4 +32,5 @@ winapi = { version = "0.3.9", features = [
     "processenv",
     "processthreadsapi",
     "memoryapi",
+    "winnt"
 ] }
