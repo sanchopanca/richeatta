@@ -3,27 +3,42 @@ use std::mem::size_of;
 use self::data_types::Integer;
 
 mod data_types;
-#[cfg_attr(target_os = "linux", path = "memory/linux.rs")]
-#[cfg_attr(target_os = "windows", path = "memory/windows.rs")]
-mod os_specific;
+
+pub trait OSMemory<T: Integer> {
+    fn modify_at_address(&self, pid: i32, address: usize, value: T);
+    fn search_everywhere(&self, pid: i32, value: T) -> Vec<usize>;
+    fn search_among_candidates(&self, pid: i32, value: T, candidates: &[usize]) -> Vec<usize>;
+}
+
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+use linux::Linux as CurrentOS;
+
+#[cfg(target_os = "windows")]
+mod windows;
+#[cfg(target_os = "windows")]
+use windows::Windows as CurrentOS;
 
 enum State {
     Idle,
     Searching,
 }
 
-pub struct Process {
+pub struct Process<T: Integer> {
     pid: i32,
     state: State,
     candidates: Vec<usize>,
+    os: Box<dyn OSMemory<T>>,
 }
 
-impl Process {
+impl<T: Integer> Process<T> {
     pub fn new(pid: i32) -> Self {
         Process {
             pid,
             state: State::Idle,
             candidates: Vec::new(),
+            os: Box::new(CurrentOS::new()),
         }
     }
 
@@ -31,19 +46,19 @@ impl Process {
         self.candidates.len()
     }
 
-    pub fn modify<T: Integer>(&self, value: T) {
+    pub fn modify(&self, value: T) {
         let address = self.candidates[0];
-        os_specific::modify_at_address(self.pid, address, value);
+        self.os.modify_at_address(self.pid, address, value);
     }
 
-    pub fn search<T: Integer>(&mut self, value: T) {
-        self.candidates = os_specific::search_everywhere(self.pid, value);
+    pub fn search(&mut self, value: T) {
+        self.candidates = self.os.search_everywhere(self.pid, value);
     }
 
-    // FIXME: If refine is called with a differnet larger type, it can try access memory outside the process memory map
-    pub fn refine<T: Integer>(&mut self, new_value: T) {
+    // FIXME: If refine is called with a different larger type, it can try access memory outside the process memory map
+    pub fn refine(&mut self, new_value: T) {
         self.candidates =
-            os_specific::search_among_candidates(self.pid, new_value, &self.candidates);
+            self.os.search_among_candidates(self.pid, new_value, &self.candidates);
     }
 }
 
@@ -51,26 +66,6 @@ fn first_search<T: Integer>(buffer: &[u8], value: T, base_address: usize) -> Vec
     let size = size_of::<T>();
     let mut found = Vec::new();
     for i in (0..buffer.len()).step_by(size) {
-        let number = to::<T>(&buffer[i..i + size]);
-        if number == value {
-            println!("FOUND {} at {:#x}", number, base_address + i);
-            found.push(base_address + i);
-        }
-    }
-    found
-}
-
-#[cfg(target_os = "linux")]
-fn refine_search<T: Integer>(
-    buffer: &[u8],
-    value: T,
-    base_address: usize,
-    candidates: &[usize],
-) -> Vec<usize> {
-    let size = size_of::<T>();
-    let mut found = Vec::new();
-    for address in candidates {
-        let i = address - base_address;
         let number = to::<T>(&buffer[i..i + size]);
         if number == value {
             println!("FOUND {} at {:#x}", number, base_address + i);
