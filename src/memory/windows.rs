@@ -131,7 +131,7 @@ impl <T: Integer> OSMemory<T> for Windows {
                     process_handle,
                     address as *const _,
                     &mut value_at_address as *mut _ as *mut _,
-                    size_of::<i32>(),
+                    size_of::<T>(),
                     &mut bytes_read,
                 )
             };

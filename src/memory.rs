@@ -55,7 +55,6 @@ impl<T: Integer> Process<T> {
         self.candidates = self.os.search_everywhere(self.pid, value);
     }
 
-    // FIXME: If refine is called with a different larger type, it can try access memory outside the process memory map
     pub fn refine(&mut self, new_value: T) {
         self.candidates =
             self.os.search_among_candidates(self.pid, new_value, &self.candidates);

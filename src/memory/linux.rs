@@ -2,7 +2,7 @@ use nix::sys::uio;
 use nix::sys::uio::RemoteIoVec;
 use nix::unistd::Pid;
 use procfs::process::{MMapPath, Process};
-use std::io::{IoSlice, SeekFrom};
+use std::io::{IoSlice, Read, Seek, SeekFrom};
 use std::mem::size_of;
 use crate::memory::data_types::Integer;
 
@@ -57,7 +57,7 @@ impl<T: Integer> OSMemory<T> for Linux {
         let mut mem = p.mem().unwrap();
         let maps = p.maps().unwrap();
 
-        let mut candidates = Vec::new();
+        let mut remaining_candidates = Vec::new();
         for map in maps {
             if map.pathname != MMapPath::Heap {
                 continue;
@@ -65,14 +65,14 @@ impl<T: Integer> OSMemory<T> for Linux {
             mem.seek(SeekFrom::Start(map.address.0)).unwrap();
             let mut buf = vec![0; (map.address.1 - map.address.0) as usize];
             mem.read_exact(&mut buf).unwrap();
-            candidates.append(&mut refine_search(
+            remaining_candidates.append(&mut refine_search(
                 &buf,
                 value,
                 map.address.0 as usize,
                 &candidates,
             ));
         }
-        candidates
+        remaining_candidates
     }
 }
 
