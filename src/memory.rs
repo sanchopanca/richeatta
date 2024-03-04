@@ -20,6 +20,12 @@ mod windows;
 #[cfg(target_os = "windows")]
 use windows::Windows as CurrentOS;
 
+#[cfg(target_os = "macos")]
+mod macos;
+
+#[cfg(target_os = "macos")]
+use macos::MacOS as CurrentOS;
+
 pub struct Process<T: Integer> {
     pid: i32,
     candidates: Vec<usize>,

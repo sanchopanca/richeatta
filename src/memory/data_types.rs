@@ -9,7 +9,9 @@ macro_rules! impl_integer_from_bytes {
                 }
 
                 fn from_ne_bytes(bytes: &[u8]) -> Self {
-                    <$type>::from_ne_bytes(bytes.try_into().expect(concat!("slice with incorrect length for ", stringify!($type))))
+                    let default_array = [0; std::mem::size_of::<$type>()];
+                    let array = bytes.try_into().unwrap_or_else(|_| &default_array);
+                    <$type>::from_ne_bytes(*array)
                 }
 
                 fn to_ne_bytes(self) -> Vec<u8> {
