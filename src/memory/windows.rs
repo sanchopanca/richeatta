@@ -20,7 +20,7 @@ impl Windows {
     }
 }
 
-impl <T: Integer> OSMemory<T> for Windows {
+impl<T: Integer> OSMemory<T> for Windows {
     fn modify_at_address(&self, pid: i32, address: usize, value: T) {
         let value = value.to_ne_bytes();
 

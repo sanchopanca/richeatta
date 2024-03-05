@@ -1,13 +1,13 @@
+use crate::memory::data_types::Integer;
 use nix::sys::uio;
 use nix::sys::uio::RemoteIoVec;
 use nix::unistd::Pid;
 use procfs::process::{MMapPath, Process};
 use std::io::{IoSlice, Read, Seek, SeekFrom};
 use std::mem::size_of;
-use crate::memory::data_types::Integer;
 
-use super::{first_search, to};
 use super::OSMemory;
+use super::{first_search, to};
 
 pub struct Linux;
 

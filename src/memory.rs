@@ -56,8 +56,9 @@ impl<T: Integer> Process<T> {
     }
 
     pub fn refine(&mut self, new_value: T) {
-        self.candidates =
-            self.os.search_among_candidates(self.pid, new_value, &self.candidates);
+        self.candidates = self
+            .os
+            .search_among_candidates(self.pid, new_value, &self.candidates);
     }
 }
 
