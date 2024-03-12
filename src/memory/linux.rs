@@ -69,7 +69,7 @@ impl<T: Integer> OSMemory<T> for Linux {
                 &buf,
                 value,
                 map.address.0 as usize,
-                &candidates,
+                candidates,
             ));
         }
         remaining_candidates
