@@ -20,14 +20,8 @@ mod windows;
 #[cfg(target_os = "windows")]
 use windows::Windows as CurrentOS;
 
-enum State {
-    Idle,
-    Searching,
-}
-
 pub struct Process<T: Integer> {
     pid: i32,
-    state: State,
     candidates: Vec<usize>,
     os: Box<dyn OSMemory<T>>,
 }
@@ -36,7 +30,6 @@ impl<T: Integer> Process<T> {
     pub fn new(pid: i32) -> Self {
         Process {
             pid,
-            state: State::Idle,
             candidates: Vec::new(),
             os: Box::new(CurrentOS::new()),
         }
