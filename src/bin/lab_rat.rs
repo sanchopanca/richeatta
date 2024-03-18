@@ -1,9 +1,25 @@
-use std::{io, process};
+use std::{env, io, process};
 
 fn main() {
     let pid = process::id();
     println!("PID: {}", pid);
 
+    let args = env::args().collect::<Vec<String>>();
+
+    if args.len() == 1 {
+        println!("Usage: lab_rat <command>");
+        return;
+    }
+
+    let command = args[1].as_str();
+
+    match command {
+        "known-value" => create_and_modify_one_value(),
+        _ => panic!("Unknown command"),
+    }
+}
+
+fn create_and_modify_one_value() {
     let mut data = Box::new(12345);
     println!("Data address: {:p}, value: {}", &data, data);
 
