@@ -14,7 +14,9 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let mut process = memory::Process::new(args.pid);
+    let process = memory::Process::new(args.pid);
+
+    let mut search = None;
 
     let mut input = String::new();
     loop {
@@ -27,17 +29,29 @@ fn main() {
         match command[0] {
             "search" => {
                 let value = command[1].parse::<i32>().unwrap();
-                process.search(value);
-                println!("{} candidates found", process.count());
+                search = Some(process.search_known_value(value));
+                if let Some(search) = &search {
+                    println!("{} candidates found", search.count());
+                }
             }
             "refine" => {
-                let value = command[1].parse::<i32>().unwrap();
-                process.refine(value);
-                println!("{} candidates found", process.count());
+                if let Some(search) = &mut search {
+                    let value = command[1].parse::<i32>().unwrap();
+                    search.refine(value);
+                    println!("{} candidates found", search.count());
+                } else {
+                    println!("No search in progress");
+                    continue;
+                }
             }
             "modify" => {
-                let value = command[1].parse::<i32>().unwrap();
-                process.modify(value);
+                if let Some(search) = &search {
+                    let value = command[1].parse::<i32>().unwrap();
+                    search.modify(value);
+                } else {
+                    println!("No search in progress");
+                    continue;
+                }
             }
             "exit" | "quit" | "q" => break,
             _ => println!("Unknown command"),

@@ -26,18 +26,34 @@ mod macos;
 #[cfg(target_os = "macos")]
 use macos::MacOS as CurrentOS;
 
-pub struct Process<T: Integer> {
+pub struct Process {
+    pid: i32,
+}
+
+impl Process {
+    pub fn new(pid: i32) -> Self {
+        Process { pid }
+    }
+
+    pub fn search_known_value<T: Integer>(&self, value: T) -> KnownValueSearch<T> {
+        let os = Box::new(CurrentOS::new());
+        let candidates = os.search_everywhere(self.pid, value);
+        KnownValueSearch::new(self.pid, candidates, os)
+    }
+}
+
+pub struct KnownValueSearch<T: Integer> {
     pid: i32,
     candidates: Vec<usize>,
     os: Box<dyn OSMemory<T>>,
 }
 
-impl<T: Integer> Process<T> {
-    pub fn new(pid: i32) -> Self {
-        Process {
+impl<T: Integer> KnownValueSearch<T> {
+    fn new(pid: i32, candidates: Vec<usize>, os: Box<dyn OSMemory<T>>) -> Self {
+        KnownValueSearch {
             pid,
-            candidates: Vec::new(),
-            os: Box::new(CurrentOS::new()),
+            candidates,
+            os,
         }
     }
 
@@ -45,19 +61,15 @@ impl<T: Integer> Process<T> {
         self.candidates.len()
     }
 
-    pub fn modify(&self, value: T) {
-        let address = self.candidates[0];
-        self.os.modify_at_address(self.pid, address, value);
-    }
-
-    pub fn search(&mut self, value: T) {
-        self.candidates = self.os.search_everywhere(self.pid, value);
-    }
-
     pub fn refine(&mut self, new_value: T) {
         self.candidates = self
             .os
             .search_among_candidates(self.pid, new_value, &self.candidates);
+    }
+
+    pub fn modify(&self, value: T) {
+        let address = self.candidates[0];
+        self.os.modify_at_address(self.pid, address, value);
     }
 }
 

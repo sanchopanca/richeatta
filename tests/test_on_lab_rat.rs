@@ -9,7 +9,7 @@ use richeatta::memory::Process;
 fn test_modify_lab_rat_memory() {
     let (pid, mut lab_rat, mut stdin, mut stdout_reader) = launch_lab_rat("known-value");
 
-    let mut agent = Process::new(pid);
+    let process = Process::new(pid);
     let mut line = String::new();
 
     // address and value
@@ -18,9 +18,9 @@ fn test_modify_lab_rat_memory() {
         .expect("Failed to read line from stdout");
     print!("Lab Rat says: {}", line);
 
-    agent.search(12345);
+    let mut search = process.search_known_value(12345);
 
-    assert!(agent.count() > 0);
+    assert!(search.count() > 0);
 
     send_command(&mut stdin, "modify");
 
@@ -31,11 +31,11 @@ fn test_modify_lab_rat_memory() {
         .expect("Failed to read line from stdout");
     print!("Lab Rat says: {}", line);
 
-    agent.refine(54321);
+    search.refine(54321);
 
-    assert_eq!(agent.count(), 1);
+    assert_eq!(search.count(), 1);
 
-    agent.modify(424242);
+    search.modify(424242);
 
     send_command(&mut stdin, "print");
 
