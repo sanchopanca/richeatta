@@ -14,23 +14,24 @@ use crate::memory::data_types::Integer;
 
 use super::{first_search, OSMemory};
 
-pub struct MacOS;
+pub struct MacOS {
+    pid: c_int,
+}
 
 impl MacOS {
-    pub fn new() -> Self {
-        MacOS
+    pub fn new(pid: i32) -> Self {
+        MacOS { pid: pid as c_int }
     }
 }
 
 impl<T: Integer> OSMemory<T> for MacOS {
-    fn modify_at_address(&self, pid: i32, address: usize, value: T) {
+    fn modify_at_address(&self, address: usize, value: T) {
         let mut task = 0;
-        let result =
-            unsafe { task_for_pid(mach::traps::mach_task_self(), pid as c_int, &mut task) };
+        let result = unsafe { task_for_pid(mach::traps::mach_task_self(), self.pid, &mut task) };
         if result != KERN_SUCCESS {
             eprintln!(
                 "Failed to get task for pid: {}. Error code: {}",
-                pid, result
+                self.pid, result
             );
             if result == KERN_FAILURE {
                 eprintln!("Error is likely due to System Integrity Protection enabled");
@@ -57,15 +58,14 @@ impl<T: Integer> OSMemory<T> for MacOS {
         }
     }
 
-    fn search_everywhere(&self, pid: i32, value: T) -> Vec<usize> {
+    fn search_everywhere(&self, value: T) -> Vec<usize> {
         let mut found = Vec::new();
         let mut task = 0;
-        let result =
-            unsafe { task_for_pid(mach::traps::mach_task_self(), pid as c_int, &mut task) };
+        let result = unsafe { task_for_pid(mach::traps::mach_task_self(), self.pid, &mut task) };
         if result != KERN_SUCCESS {
             eprintln!(
                 "Failed to get task for pid: {}. Error code: {}",
-                pid, result
+                self.pid, result
             );
             if result == KERN_FAILURE {
                 eprintln!("Error is likely due to System Integrity Protection enabled");
@@ -138,15 +138,14 @@ impl<T: Integer> OSMemory<T> for MacOS {
         found
     }
 
-    fn search_among_candidates(&self, pid: i32, value: T, candidates: &[usize]) -> Vec<usize> {
+    fn search_among_candidates(&self, value: T, candidates: &[usize]) -> Vec<usize> {
         let mut found = Vec::new();
         let mut task = 0;
-        let result =
-            unsafe { task_for_pid(mach::traps::mach_task_self(), pid as c_int, &mut task) };
+        let result = unsafe { task_for_pid(mach::traps::mach_task_self(), self.pid, &mut task) };
         if result != KERN_SUCCESS {
             eprintln!(
                 "Failed to get task for pid: {}. Error code: {}",
-                pid, result
+                self.pid, result
             );
             if result == KERN_FAILURE {
                 eprintln!("Error is likely due to System Integrity Protection enabled");

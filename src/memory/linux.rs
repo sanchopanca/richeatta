@@ -9,23 +9,25 @@ use std::mem::size_of;
 use super::OSMemory;
 use super::{first_search, to};
 
-pub struct Linux;
+pub struct Linux {
+    pid: i32,
+}
 
 impl Linux {
-    pub fn new() -> Self {
-        Linux
+    pub fn new(pid: i32) -> Self {
+        Linux { pid }
     }
 }
 
 impl<T: Integer> OSMemory<T> for Linux {
-    fn modify_at_address(&self, pid: i32, address: usize, value: T) {
+    fn modify_at_address(&self, address: usize, value: T) {
         let data = value.to_ne_bytes();
         let wrapper = IoSlice::new(&data);
         let target = RemoteIoVec {
             base: address,
             len: data.len(),
         };
-        match uio::process_vm_writev(Pid::from_raw(pid), &[wrapper], &[target]) {
+        match uio::process_vm_writev(Pid::from_raw(self.pid), &[wrapper], &[target]) {
             Err(e) => println!("Error writing to {:#x}: {}", target.base, e),
             Ok(written) => println!(
                 "Success writing to {:#x}, {} bytes written",
@@ -34,8 +36,8 @@ impl<T: Integer> OSMemory<T> for Linux {
         }
     }
 
-    fn search_everywhere(&self, pid: i32, value: T) -> Vec<usize> {
-        let p = Process::new(pid).unwrap();
+    fn search_everywhere(&self, value: T) -> Vec<usize> {
+        let p = Process::new(self.pid).unwrap();
         let mut mem = p.mem().unwrap();
         let maps = p.maps().unwrap();
 
@@ -52,8 +54,8 @@ impl<T: Integer> OSMemory<T> for Linux {
         candidates
     }
 
-    fn search_among_candidates(&self, pid: i32, value: T, candidates: &[usize]) -> Vec<usize> {
-        let p = Process::new(pid).unwrap();
+    fn search_among_candidates(&self, value: T, candidates: &[usize]) -> Vec<usize> {
+        let p = Process::new(self.pid).unwrap();
         let mut mem = p.mem().unwrap();
         let maps = p.maps().unwrap();
 

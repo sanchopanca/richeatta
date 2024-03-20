@@ -5,9 +5,9 @@ use self::data_types::Integer;
 mod data_types;
 
 pub trait OSMemory<T: Integer> {
-    fn modify_at_address(&self, pid: i32, address: usize, value: T);
-    fn search_everywhere(&self, pid: i32, value: T) -> Vec<usize>;
-    fn search_among_candidates(&self, pid: i32, value: T, candidates: &[usize]) -> Vec<usize>;
+    fn modify_at_address(&self, address: usize, value: T);
+    fn search_everywhere(&self, value: T) -> Vec<usize>;
+    fn search_among_candidates(&self, value: T, candidates: &[usize]) -> Vec<usize>;
 }
 
 #[cfg(target_os = "linux")]
@@ -36,25 +36,20 @@ impl Process {
     }
 
     pub fn search_known_value<T: Integer>(&self, value: T) -> KnownValueSearch<T> {
-        let os = Box::new(CurrentOS::new());
-        let candidates = os.search_everywhere(self.pid, value);
-        KnownValueSearch::new(self.pid, candidates, os)
+        let os = Box::new(CurrentOS::new(self.pid));
+        let candidates = os.search_everywhere(value);
+        KnownValueSearch::new(candidates, os)
     }
 }
 
 pub struct KnownValueSearch<T: Integer> {
-    pid: i32,
     candidates: Vec<usize>,
     os: Box<dyn OSMemory<T>>,
 }
 
 impl<T: Integer> KnownValueSearch<T> {
-    fn new(pid: i32, candidates: Vec<usize>, os: Box<dyn OSMemory<T>>) -> Self {
-        KnownValueSearch {
-            pid,
-            candidates,
-            os,
-        }
+    fn new(candidates: Vec<usize>, os: Box<dyn OSMemory<T>>) -> Self {
+        KnownValueSearch { candidates, os }
     }
 
     pub fn count(&self) -> usize {
@@ -62,14 +57,12 @@ impl<T: Integer> KnownValueSearch<T> {
     }
 
     pub fn refine(&mut self, new_value: T) {
-        self.candidates = self
-            .os
-            .search_among_candidates(self.pid, new_value, &self.candidates);
+        self.candidates = self.os.search_among_candidates(new_value, &self.candidates);
     }
 
     pub fn modify(&self, value: T) {
         let address = self.candidates[0];
-        self.os.modify_at_address(self.pid, address, value);
+        self.os.modify_at_address(address, value);
     }
 }
 

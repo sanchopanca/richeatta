@@ -12,21 +12,23 @@ use super::data_types::Integer;
 use super::first_search;
 use super::OSMemory;
 
-pub struct Windows;
+pub struct Windows {
+    pid: u32,
+}
 
 impl Windows {
-    pub fn new() -> Self {
-        Windows
+    pub fn new(pid: i32) -> Self {
+        Windows { pid: pid as u32 }
     }
 }
 
 impl<T: Integer> OSMemory<T> for Windows {
-    fn modify_at_address(&self, pid: i32, address: usize, value: T) {
+    fn modify_at_address(&self, address: usize, value: T) {
         let value = value.to_ne_bytes();
 
         // Open a handle to the process with write and operation permissions
         let process_handle =
-            unsafe { OpenProcess(PROCESS_VM_WRITE | PROCESS_VM_OPERATION, 0, pid as u32) };
+            unsafe { OpenProcess(PROCESS_VM_WRITE | PROCESS_VM_OPERATION, 0, self.pid) };
 
         if process_handle.is_null() {
             eprintln!("Failed to open process");
@@ -57,9 +59,9 @@ impl<T: Integer> OSMemory<T> for Windows {
         }
     }
 
-    fn search_everywhere(&self, pid: i32, value: T) -> Vec<usize> {
+    fn search_everywhere(&self, value: T) -> Vec<usize> {
         let process_handle =
-            unsafe { OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, pid as u32) };
+            unsafe { OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, self.pid) };
 
         if process_handle.is_null() {
             println!("Failed to open process. Error: {}", unsafe {
@@ -110,9 +112,9 @@ impl<T: Integer> OSMemory<T> for Windows {
         candidates
     }
 
-    fn search_among_candidates(&self, pid: i32, value: T, candidates: &[usize]) -> Vec<usize> {
+    fn search_among_candidates(&self, value: T, candidates: &[usize]) -> Vec<usize> {
         let process_handle =
-            unsafe { OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, pid as u32) };
+            unsafe { OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, self.pid) };
 
         if process_handle.is_null() {
             println!("Failed to open process. Error: {}", unsafe {
