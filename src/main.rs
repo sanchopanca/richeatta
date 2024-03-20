@@ -1,8 +1,13 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 
 use std::io;
 
 mod memory;
+
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
+enum Mode {
+    KnownValue,
+}
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -10,11 +15,21 @@ struct Args {
     /// PID of the process to inspect
     #[clap(short, long, value_parser)]
     pid: i32,
+
+    #[arg(value_enum, default_value_t = Mode::KnownValue)]
+    mode: Mode,
 }
 
 fn main() {
     let args = Args::parse();
-    let process = memory::Process::new(args.pid);
+
+    if args.mode == Mode::KnownValue {
+        known_value_search(args.pid);
+    }
+}
+
+fn known_value_search(pid: i32) {
+    let process = memory::Process::new(pid);
 
     let mut search = None;
 
