@@ -63,32 +63,22 @@ impl<T: Integer> OSMemory<T> for Windows {
 
     fn search_everywhere(&self, value: T) -> Vec<usize> {
         let mut candidates = Vec::new();
-        let mut base_address = 0;
-        let mut memory_info: MEMORY_BASIC_INFORMATION = unsafe { zeroed() };
 
-        while unsafe {
-            VirtualQueryEx(
-                self.process_handle,
-                base_address as *const _,
-                &mut memory_info,
-                size_of::<MEMORY_BASIC_INFORMATION>(),
-            )
-        } == size_of::<MEMORY_BASIC_INFORMATION>()
-        {
+        for region in self.memory_regions() {
             // Only consider regions that are committed, ignoring other states for simplicity
-            if memory_info.State == winapi::um::winnt::MEM_COMMIT {
-                let mut buffer: Vec<u8> = vec![0; memory_info.RegionSize];
-                if let Err(err) =
-                    self.read_process_memory(memory_info.BaseAddress as usize, &mut buffer)
-                {
-                    eprintln!("{}", err);
-                } else {
-                    candidates.append(&mut first_search(&buffer, value, base_address));
-                }
+            if region.State != winapi::um::winnt::MEM_COMMIT {
+                continue;
             }
-
-            // Move to the next memory region
-            base_address = (memory_info.BaseAddress as usize) + memory_info.RegionSize;
+            let mut buffer: Vec<u8> = vec![0; region.RegionSize];
+            if let Err(err) = self.read_process_memory(region.BaseAddress as usize, &mut buffer) {
+                eprintln!("{}", err);
+            } else {
+                candidates.append(&mut first_search(
+                    &buffer,
+                    value,
+                    region.BaseAddress as usize,
+                ));
+            }
         }
         candidates
     }
@@ -162,6 +152,40 @@ impl Windows {
         let mut value = [T::new()];
         self.read_process_memory(address, &mut value)?;
         Ok(value[0])
+    }
+
+    fn memory_regions(&self) -> MemoryRegionIterator {
+        MemoryRegionIterator {
+            process_handle: self.process_handle,
+            memory_info: unsafe { zeroed() },
+        }
+    }
+}
+
+struct MemoryRegionIterator {
+    process_handle: *mut winapi::ctypes::c_void,
+    memory_info: MEMORY_BASIC_INFORMATION,
+}
+
+impl Iterator for MemoryRegionIterator {
+    type Item = MEMORY_BASIC_INFORMATION;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next_base_address =
+            (self.memory_info.BaseAddress as usize) + self.memory_info.RegionSize;
+        if unsafe {
+            VirtualQueryEx(
+                self.process_handle,
+                next_base_address as *const _,
+                &mut self.memory_info,
+                size_of::<MEMORY_BASIC_INFORMATION>(),
+            )
+        } == size_of::<MEMORY_BASIC_INFORMATION>()
+        {
+            Some(self.memory_info)
+        } else {
+            None
+        }
     }
 }
 
