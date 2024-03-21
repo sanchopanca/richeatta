@@ -58,24 +58,7 @@ impl Drop for Windows {
 impl<T: Integer> OSMemory<T> for Windows {
     fn modify_at_address(&self, address: usize, value: T) {
         let value = value.to_ne_bytes();
-
-        // Attempt to write data to the specified memory address
-        let mut bytes_written = 0;
-        let write_result = unsafe {
-            WriteProcessMemory(
-                self.process_handle,
-                address as *mut _,
-                value.as_ptr() as *const _,
-                value.len(),
-                &mut bytes_written,
-            )
-        };
-
-        if write_result == 0 {
-            eprintln!("Failed to write memory");
-            #[allow(clippy::needless_return)]
-            return;
-        }
+        self.write_process_memory(address, &value).unwrap();
     }
 
     fn search_everywhere(&self, value: T) -> Vec<usize> {
@@ -95,19 +78,11 @@ impl<T: Integer> OSMemory<T> for Windows {
             // Only consider regions that are committed, ignoring other states for simplicity
             if memory_info.State == winapi::um::winnt::MEM_COMMIT {
                 let mut buffer: Vec<u8> = vec![0; memory_info.RegionSize];
-                let mut bytes_read = 0;
-
-                let read_success = unsafe {
-                    ReadProcessMemory(
-                        self.process_handle,
-                        memory_info.BaseAddress,
-                        buffer.as_mut_ptr() as *mut _,
-                        memory_info.RegionSize,
-                        &mut bytes_read,
-                    )
-                };
-
-                if read_success != 0 && bytes_read > 0 {
+                if let Err(err) =
+                    self.read_process_memory(memory_info.BaseAddress as usize, &mut buffer)
+                {
+                    eprintln!("{}", err);
+                } else {
                     candidates.append(&mut first_search(&buffer, value, base_address));
                 }
             }
@@ -122,22 +97,103 @@ impl<T: Integer> OSMemory<T> for Windows {
         let mut remaining_candidates = Vec::new();
 
         for &address in candidates {
-            let mut bytes_read = 0;
-            let mut value_at_address = T::new();
-            let read_success = unsafe {
-                ReadProcessMemory(
-                    self.process_handle,
-                    address as *const _,
-                    &mut value_at_address as *mut _ as *mut _,
-                    size_of::<T>(),
-                    &mut bytes_read,
-                )
-            };
-            if read_success != 0 && bytes_read > 0 && value_at_address == value {
+            let values_at_address = self.read_process_memory_single_value::<T>(address).unwrap();
+            if values_at_address == value {
                 println!("FOUND {} at {:#x}", value, address);
                 remaining_candidates.push(address);
             }
         }
         remaining_candidates
+    }
+}
+
+impl Windows {
+    fn write_process_memory(&self, address: usize, value: &[u8]) -> Result<(), WinError> {
+        let mut bytes_written = 0;
+        let write_result = unsafe {
+            WriteProcessMemory(
+                self.process_handle,
+                address as *mut _,
+                value.as_ptr() as *const _,
+                value.len(),
+                &mut bytes_written,
+            )
+        };
+        if write_result == 0 {
+            let error = unsafe { GetLastError() };
+            return Err(error.into());
+        }
+
+        assert!(bytes_written == value.len());
+
+        Ok(())
+    }
+
+    fn read_process_memory<T: Integer>(
+        &self,
+        address: usize,
+        buffer: &mut [T],
+    ) -> Result<(), WinError> {
+        let mut bytes_read = 0;
+
+        let len_in_bytes = std::mem::size_of_val(buffer);
+
+        let read_success = unsafe {
+            ReadProcessMemory(
+                self.process_handle,
+                address as *const _,
+                buffer.as_mut_ptr() as *mut _,
+                len_in_bytes,
+                &mut bytes_read,
+            )
+        };
+
+        if read_success == 0 {
+            let error = unsafe { GetLastError() };
+            return Err(error.into());
+        }
+
+        assert!(bytes_read == len_in_bytes);
+
+        Ok(())
+    }
+
+    fn read_process_memory_single_value<T: Integer>(&self, address: usize) -> Result<T, WinError> {
+        let mut value = [T::new()];
+        self.read_process_memory(address, &mut value)?;
+        Ok(value[0])
+    }
+}
+
+enum WinError {
+    PartialCopy,
+    OtherError,
+}
+
+impl From<u32> for WinError {
+    fn from(err: u32) -> Self {
+        match err {
+            0x12B => WinError::PartialCopy,
+            _ => {
+                eprintln!("Unknown error: {}", err);
+                WinError::OtherError
+            }
+        }
+    }
+}
+
+impl std::fmt::Debug for WinError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl std::fmt::Display for WinError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = match self {
+            WinError::PartialCopy => "Error: Partial copy. Only part of a ReadProcessMemory or WriteProcessMemory request was completed.",
+            WinError::OtherError => "Unknown error",
+        };
+        write!(f, "{}", message)
     }
 }
