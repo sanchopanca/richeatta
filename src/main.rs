@@ -7,6 +7,7 @@ mod memory;
 #[derive(Clone, Debug, PartialEq, Eq, ValueEnum)]
 enum Mode {
     KnownValue,
+    UnknownValue,
 }
 
 #[derive(Parser, Debug)]
@@ -23,8 +24,9 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    if args.mode == Mode::KnownValue {
-        known_value_search(args.pid);
+    match args.mode {
+        Mode::KnownValue => known_value_search(args.pid),
+        Mode::UnknownValue => unknown_value_search(args.pid),
     }
 }
 
@@ -66,6 +68,83 @@ fn known_value_search(pid: i32) {
                 } else {
                     println!("No search in progress");
                     continue;
+                }
+            }
+            "exit" | "quit" | "q" => break,
+            _ => println!("Unknown command"),
+        }
+    }
+}
+
+fn unknown_value_search(pid: i32) {
+    let process = memory::Process::new(pid);
+
+    let mut search = None;
+
+    let mut input = String::new();
+    loop {
+        input.clear();
+        io::stdin().read_line(&mut input).unwrap();
+        let command = input.trim().split_ascii_whitespace().collect::<Vec<&str>>();
+        if command.is_empty() {
+            continue;
+        }
+        match command[0] {
+            "search" => {
+                search = Some(process.search_unknown_value::<i32>());
+                if let Some(search) = &search {
+                    println!("{} candidates found", search.count());
+                }
+            }
+            "up" => {
+                if let Some(search) = &mut search {
+                    search.value_increased();
+                    println!("{} candidates found", search.count());
+                } else {
+                    println!("No search in progress");
+                    continue;
+                }
+            }
+            "down" => {
+                if let Some(search) = &mut search {
+                    search.value_decreased();
+                    println!("{} candidates found", search.count());
+                } else {
+                    println!("No search in progress");
+                    continue;
+                }
+            }
+            "same" => {
+                if let Some(search) = &mut search {
+                    search.value_didnt_change();
+                    println!("{} candidates found", search.count());
+                } else {
+                    println!("No search in progress");
+                    continue;
+                }
+            }
+            "different" => {
+                if let Some(search) = &mut search {
+                    search.value_changed();
+                    println!("{} candidates found", search.count());
+                } else {
+                    println!("No search in progress");
+                    continue;
+                }
+            }
+            "modify" => {
+                if let Some(search) = &search {
+                    let value = command[1].parse::<i32>().unwrap();
+                    search.modify(value);
+                } else {
+                    println!("No search in progress");
+                    continue;
+                }
+            }
+            "print" => {
+                if let Some(search) = &search {
+                    let value = search.get_current_value();
+                    println!("{}", value);
                 }
             }
             "exit" | "quit" | "q" => break,

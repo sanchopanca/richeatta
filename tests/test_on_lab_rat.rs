@@ -54,6 +54,91 @@ fn test_modify_lab_rat_memory() {
     let _ = lab_rat.wait().expect("Failed to wait on lab_rat");
 }
 
+#[test]
+#[cfg(target_os = "windows")]
+fn test_unknown_value() {
+    let (pid, mut lab_rat, mut stdin, mut stdout_reader) = launch_lab_rat("unknown-value");
+
+    let process = Process::new(pid);
+
+    let mut search = process.search_unknown_value::<i8>();
+
+    send_command(&mut stdin, "increase");
+    search.value_increased();
+
+    send_command(&mut stdin, "decrease");
+    search.value_decreased();
+
+    send_command(&mut stdin, "increase");
+    send_command(&mut stdin, "decrease");
+
+    search.value_didnt_change();
+
+    send_command(&mut stdin, "increase");
+    send_command(&mut stdin, "increase");
+    send_command(&mut stdin, "increase");
+    send_command(&mut stdin, "increase");
+
+    search.value_increased();
+
+    send_command(&mut stdin, "decrease");
+    search.value_changed();
+
+    send_command(&mut stdin, "increase");
+    search.value_changed();
+
+    send_command(&mut stdin, "decrease");
+    send_command(&mut stdin, "decrease");
+    send_command(&mut stdin, "decrease");
+    send_command(&mut stdin, "decrease");
+
+    search.value_decreased();
+
+    send_command(&mut stdin, "decrease");
+    send_command(&mut stdin, "increase");
+
+    search.value_didnt_change();
+
+    // the number of refinements isn't really determenistic
+    // and is different on my machine and on CI runners
+    // so we just refine some more
+
+    send_command(&mut stdin, "decrease");
+    send_command(&mut stdin, "decrease");
+
+    search.value_decreased();
+
+    send_command(&mut stdin, "increase");
+    send_command(&mut stdin, "increase");
+
+    search.value_increased();
+
+    send_command(&mut stdin, "increase");
+    send_command(&mut stdin, "increase");
+
+    search.value_increased();
+
+    assert_eq!(search.count(), 1);
+
+    search.modify(-42i8);
+
+    send_command(&mut stdin, "print");
+
+    let mut line = String::new();
+    // new value after our modification
+    stdout_reader
+        .read_line(&mut line)
+        .expect("Failed to read line from stdout");
+
+    let new_value = line.trim().parse::<i8>().unwrap();
+
+    assert_eq!(new_value, -42i8);
+
+    send_command(&mut stdin, "exit");
+
+    let _ = lab_rat.wait().expect("Failed to wait on lab_rat");
+}
+
 fn launch_lab_rat(
     command: &str,
 ) -> (
