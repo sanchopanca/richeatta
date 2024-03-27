@@ -72,7 +72,7 @@ fn first_search<T: Integer>(buffer: &[u8], value: T, base_address: usize) -> Vec
     for i in (0..buffer.len()).step_by(size) {
         let number = to::<T>(&buffer[i..i + size]);
         if number == value {
-            println!("FOUND {} at {:#x}", number, base_address + i);
+            // println!("FOUND {} at {:#x}", number, base_address + i);
             found.push(base_address + i);
         }
     }

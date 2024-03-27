@@ -70,8 +70,8 @@ impl<T: Integer> OSMemory<T> for Windows {
                 continue;
             }
             let mut buffer: Vec<u8> = vec![0; region.RegionSize];
-            if let Err(err) = self.read_process_memory(region.BaseAddress as usize, &mut buffer) {
-                eprintln!("{}", err);
+            if let Err(_err) = self.read_process_memory(region.BaseAddress as usize, &mut buffer) {
+                // eprintln!("{}", err);
             } else {
                 candidates.append(&mut first_search(
                     &buffer,
@@ -87,10 +87,11 @@ impl<T: Integer> OSMemory<T> for Windows {
         let mut remaining_candidates = Vec::new();
 
         for &address in candidates {
-            let values_at_address = self.read_process_memory_single_value::<T>(address).unwrap();
-            if values_at_address == value {
-                println!("FOUND {} at {:#x}", value, address);
-                remaining_candidates.push(address);
+            if let Ok(values_at_address) = self.read_process_memory_single_value::<T>(address) {
+                if values_at_address == value {
+                    // println!("FOUND {} at {:#x}", value, address);
+                    remaining_candidates.push(address);
+                }
             }
         }
         remaining_candidates
