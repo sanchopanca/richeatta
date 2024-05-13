@@ -25,6 +25,7 @@ macro_rules! impl_integer_from_bytes {
 }
 
 pub trait Integer: Sized + Copy + PartialEq + PartialOrd + Display {
+    #[allow(dead_code)]
     fn new() -> Self;
     fn from_ne_bytes(bytes: &[u8]) -> Self;
     fn to_ne_bytes(self) -> Vec<u8>;
