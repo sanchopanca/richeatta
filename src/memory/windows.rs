@@ -96,6 +96,75 @@ impl<T: Integer> OSMemory<T> for Windows {
         }
         remaining_candidates
     }
+
+    fn get_all_memory_regions(&self) -> Vec<super::MemoryRegion<T>> {
+        self.memory_regions()
+            .filter(|region| region.State == winapi::um::winnt::MEM_COMMIT)
+            .flat_map(|region| {
+                let len = region.RegionSize / size_of::<T>();
+                let mut buffer = vec![T::new(); len];
+                if let Err(_err) =
+                    self.read_process_memory(region.BaseAddress as usize, &mut buffer)
+                {
+                    None
+                } else {
+                    Some(super::MemoryRegion {
+                        base_address: region.BaseAddress as usize,
+                        data: buffer,
+                    })
+                }
+            })
+            .collect()
+    }
+
+    fn filter_regions(
+        &self,
+        regions: &[super::MemoryRegion<T>],
+        filter: fn(T, T) -> bool,
+    ) -> Vec<super::MemoryRegion<T>> {
+        let mut new_regions = Vec::new();
+        for old_region in regions {
+            let address = old_region.base_address;
+            let mut current_region = vec![T::new(); old_region.data.len()];
+            if let Err(_err) = self.read_process_memory(address, &mut current_region) {
+                // eprintln!("Error during refinement memory regions: {}", err);
+                continue;
+            }
+
+            let mut new_region_start = address;
+            let mut new_region_data = Vec::new();
+
+            for (i, (old_value, new_value)) in old_region
+                .data
+                .iter()
+                .zip(current_region.iter())
+                .enumerate()
+            {
+                if filter(*old_value, *new_value) {
+                    new_region_data.push(*new_value);
+                } else if !new_region_data.is_empty() {
+                    let new_region = super::MemoryRegion {
+                        base_address: new_region_start,
+                        data: new_region_data,
+                    };
+                    new_regions.push(new_region);
+                    new_region_data = Vec::new();
+                    new_region_start = address + (i + 1) * size_of::<T>();
+                } else {
+                    new_region_start = address + (i + 1) * size_of::<T>();
+                }
+            }
+
+            if !new_region_data.is_empty() {
+                let new_region = super::MemoryRegion {
+                    base_address: new_region_start,
+                    data: new_region_data,
+                };
+                new_regions.push(new_region);
+            }
+        }
+        new_regions
+    }
 }
 
 impl Windows {
