@@ -181,4 +181,16 @@ impl<T: Integer> OSMemory<T> for MacOS {
 
         found
     }
+
+    fn get_all_memory_regions(&self) -> Vec<super::MemoryRegion<T>> {
+        unimplemented!()
+    }
+
+    fn filter_regions(
+        &self,
+        _regions: &[super::MemoryRegion<T>],
+        _filter: fn(T, T) -> bool,
+    ) -> Vec<super::MemoryRegion<T>> {
+        unimplemented!()
+    }
 }
